@@ -7,6 +7,7 @@
 # Tested on: FortiGate 100D / FortiGate 300C (5.0.3)
 # Tested on: FortiGate 200B (5.0.6), Fortigate 800C (5.2.2)
 # Tested on: FortiAnalyzer (5.2.4)
+# Tested on: FortiWiFi 60D (5.2.6), FortiWiFi 92D (5.6.2)
 #
 # Author: Oliver Skibbe (oliskibbe (at) gmail.com)
 # Date: 2017-01-12
@@ -75,6 +76,9 @@
 # Release 1.8.1 (2017-06-28) Alexandre Rigaud (alexandre (at) rigaudcolonna.fr)
 # - Added checks used by devices on output when selected type is missing 
 # - Added no check cluster option
+# Release 1.8.2.1 (2018-02-07) SOXFOR '
+# - add: section for FortiWiFi specific support
+# - fix: added Network Traffic Unit value (kbps)
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -102,7 +106,7 @@ use Socket;
 use POSIX;
 
 my $script = "check_fortigate.pl";
-my $script_version = "1.8.2";
+my $script_version = "1.8.2.1";
 
 # for more information.
 my %status = (     # Enumeration for the output Nagios states
@@ -247,11 +251,22 @@ given ( $curr_serial ) {
          when ("load")  { ($return_state, $return_string) = get_health_value($oid_fad_load, "Load", "%"); }
          default { ($return_state, $return_string) = ('UNKNOWN',"UNKNOWN: This device supports only selected type -T cpu|mem|ldisk|load, $curr_device is a FortiADC (S/N: $curr_serial)"); }
       }
+   } when (^/FWF/ ) { # FWF = FortiWiFi
+      given ( lc($type) ) {
+	 when ("cpu") { ($return_state, $return_string) = get_health_value($oid_cpu, "CPU", "%"); }
+	 when ("mem") { ($return_state, $return_string) = get_health_value($oid_mem, "Memory", "%"); }
+	 when ("net") { ($return_state, $return_string) = get_health_value($oid_net, "Network", "kbps"); }
+	 when ("ses") { ($return_state, $return_string) = get_health_value($oid_ses, "Session", ""); }
+	 when ("vpn") { ($return_state, $return_string) = get_vpn_state(); }
+	 when ("wtp") { ($return_state, $return_string) = get_wtp_state("%"); }
+	 when ("firmware") { ($return_state, $return_string) = get_firmware_state(); }
+	 default { ($return_state, $return_string) = ('UNKNOWN',"UNKNOWN: This device supports only selected type -T cpu|mem|net|ses|vpn|wtp|firmware, $curr_device is a FortiWiFi (S/N: $curr_serial)"); }
+     }
    } default { # OTHERS (FG = FORTIGATE...)
       given ( lc($type) ) {
          when ("cpu") { ($return_state, $return_string) = get_health_value($oid_cpu, "CPU", "%"); }
          when ("mem") { ($return_state, $return_string) = get_health_value($oid_mem, "Memory", "%"); }
-         when ("net") { ($return_state, $return_string) = get_health_value($oid_net, "Network", ""); }
+         when ("net") { ($return_state, $return_string) = get_health_value($oid_net, "Network", "kbps"); }
          when ("ses") { ($return_state, $return_string) = get_health_value($oid_ses, "Session", ""); }
          when ("vpn") { ($return_state, $return_string) = get_vpn_state(); }
          when ("wtp") { ($return_state, $return_string) = get_wtp_state("%"); }
@@ -342,7 +357,7 @@ sub get_health_value {
   if ( $slave == 1 ) {
       $oid = $_[0] . ".2";
       $label = "slave_" . $label;
-  } elsif ( $curr_serial =~ /^FG/ ) {
+  } elsif ( $curr_serial =~ /^FG|FWF/ ) {
       $oid = $_[0] . ".1";
   } else {
       $oid = $_[0];
