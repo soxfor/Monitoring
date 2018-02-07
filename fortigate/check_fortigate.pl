@@ -251,7 +251,7 @@ given ( $curr_serial ) {
          when ("load")  { ($return_state, $return_string) = get_health_value($oid_fad_load, "Load", "%"); }
          default { ($return_state, $return_string) = ('UNKNOWN',"UNKNOWN: This device supports only selected type -T cpu|mem|ldisk|load, $curr_device is a FortiADC (S/N: $curr_serial)"); }
       }
-   } when (^/FWF/ ) { # FWF = FortiWiFi
+   } when (/^FWF/ ) { # FWF = FortiWiFi
       given ( lc($type) ) {
 	 when ("cpu") { ($return_state, $return_string) = get_health_value($oid_cpu, "CPU", "%"); }
 	 when ("mem") { ($return_state, $return_string) = get_health_value($oid_mem, "Memory", "%"); }
